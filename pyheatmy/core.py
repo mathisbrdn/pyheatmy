@@ -162,7 +162,7 @@ class Column:
     def sample_param(self):
         return choice([s.params for s in self._states])
     
-    @compute_mcmc.need
+    @compute_mcmc.needed
     def get_best_param(self):
         """return the params that minimize the energy"""
         return min(self._states, key=getattr("energy")).params
