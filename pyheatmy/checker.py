@@ -1,7 +1,5 @@
 from functools import wraps
 
-from functools import wraps
-
 def checker(checked_meth):
     def reset():
         nonlocal computed
@@ -24,4 +22,6 @@ def checker(checked_meth):
     computed = False
     wrapper.reset = reset
     wrapper.needed = needed
-    return wrapper  
+    return wrapper
+
+__all__ = ["checker"]
