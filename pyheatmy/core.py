@@ -196,6 +196,11 @@ class Column:
     def get_all_cs(self):
         return [s.params.cs for s in self._states]
     all_cs = property(get_all_cs)
+    
+    @compute_mcmc.needed
+    def get_all_rhoscs(self):
+        return [s.params.rhos*s.params.cs for s in self._states]
+    all_rhoscs = property(get_all_rhoscs)
 
     @compute_mcmc.needed
     def get_all_energy(self):
