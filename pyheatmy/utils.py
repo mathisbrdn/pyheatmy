@@ -114,9 +114,6 @@ def compute_next_h(K, Ss, dt, dz, H_prev, H0, Hn, alpha = .7):
 
     return solve(A, lim)
 
-class ComputationOrderException(Exception):
-    pass
-
 __all__ = [
     "LAMBDA_W",
     "RHO_W",
