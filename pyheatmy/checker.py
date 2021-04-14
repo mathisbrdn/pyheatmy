@@ -1,5 +1,8 @@
 from functools import wraps
 
+class ComputationOrderException(Exception):
+    pass
+
 def checker(checked_meth):
     def reset():
         nonlocal computed
@@ -10,7 +13,7 @@ def checker(checked_meth):
         def new_meth(self, *args, **kargs):
             if computed:
                 return meth(self, *args, **kargs)
-            raise IndentationError(f"{checked_meth.__name__} has to be computed before calling {meth.__name__}.") 
+            raise ComputationOrderException(f"{checked_meth.__name__} has to be computed before calling {meth.__name__}.") 
         return new_meth
     
     @wraps(checked_meth)
