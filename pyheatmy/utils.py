@@ -9,8 +9,7 @@ PARAM_LIST = (
     "moinslog10K",
     "n",
     "lambda_s",
-    "rhos",
-    "cs"
+    "rhos_cs",
 )
 
 def compute_acceptance(actual_energy: float, prev_energy: float, actual_sigma: float, prev_sigma: float):
@@ -19,7 +18,7 @@ def compute_acceptance(actual_energy: float, prev_energy: float, actual_sigma: f
 def compute_next_temp(param, dt, dz, temp_prev, H, H_prev, t0, tn, alpha = .7):
     N = H.size 
 
-    rho_mc_m = param.n*RHO_W*C_W + (1-param.n)*param.rhos*param.cs
+    rho_mc_m = param.n*RHO_W*C_W + (1-param.n)*param.rhos_cs
     K = 10**-param.moinslog10K
     lambda_m = (param.n*(LAMBDA_W)**.5+(1-param.n)*(param.lambda_s)**.5)**2
 
@@ -121,6 +120,5 @@ __all__ = [
     "PARAM_LIST",
     "compute_acceptance",
     "compute_next_temp",
-    "compute_next_h",
-    "ComputationOrderException"
+    "compute_next_h"
 ]

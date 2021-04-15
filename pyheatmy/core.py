@@ -16,24 +16,22 @@ class Column:
             self,
             river_bed: float,
             depth_sensors: Sequence[float],
-            delta_h: float,
+            offset: float,
             dH_measures: list,
-            T_riv: list,
-            T_aq: list,
             T_measures: list,
             sigma_meas_P: float,
             sigma_meas_T: float):
         self.depth_sensors = depth_sensors
-        self.delta_h = delta_h
+        self.offset = offset
         
         #! Pour l'instant on suppose que les temps matchent
         self._times = [t for t,_ in dH_measures]
-        self._dH = np.array([d for _,d in dH_measures])
-        #self._T_riv = np.array([t for _,t in T_riv])
-        #self._T_aq = np.array([t for _,t in T_aq])
-        self._T_measures = np.array([t for _,t in T_measures])
+        self._dH = np.array([d for _,(d, _) in dH_measures])
+        self._T_riv = np.array([t for _,(_, t) in dH_measures])
+        self._T_aq = np.array([t[-1] for _,t in T_measures])
+        self._T_measures = np.array([t[:-1] for _,t in T_measures])
 
-        self._real_z = np.array(depth_sensors) - river_bed + delta_h
+        self._real_z = + np.array([0]+depth_sensors) + river_bed + offset
         self._states = None
         self._z_solve = None
 
@@ -47,8 +45,9 @@ class Column:
             param = Param(*param)
         
         self._z_solve = np.linspace(self._real_z[0], self._real_z[-1], nb_cells)
-        dz = self._z_solve[1]-self._z_solve[0]
+        dz = abs(self._z_solve[1]-self._z_solve[0])
         K = 10**-param.moinslog10K
+        heigth = abs(self._real_z[-1]-self._real_z[0])
         Ss = param.n / dz
 
         H_res = np.zeros((len(self._times), nb_cells))
@@ -59,11 +58,11 @@ class Column:
         #print(H_res[0])
         for k in range(1, len(self._times)):
             dt = (self._times[k]-self._times[k-1]).total_seconds()
-            H_res[k] = compute_next_h(K, Ss, dt, dz, H_res[k-1], self._dH[k], 0)
+            H_res[k] = compute_next_h(K, Ss, dt, dz, H_res[k-1], self._dH[k]*heigth, 0)
             temps[k] = compute_next_temp(param, dt, dz, temps[k-1], H_res[k], H_res[k-1], self._T_measures[k][0], self._T_measures[k][-1])
 
         self._temps = temps
-        self._flows = K*(H_res[:,1:]-H_res[:,:-1])/dz
+        self._flows = K*(H_res[:,1]-H_res[:,0])/dz
     
     @compute_solve_transi.needed    
     def get_depths_solve(self):
@@ -104,23 +103,23 @@ class Column:
             [Carac((a,b),c) for (a,b),c in (priors[lbl] for lbl in PARAM_LIST)]
         )
         
-        temp_ref = self._T_measures[:,1:-1]
+        ind_ref = [
+            np.argmin(np.abs(z-np.linspace(self._real_z[0], self._real_z[-1], nb_cells)))
+            for z in self._real_z[1:-1]
+        ]
+        temp_ref = self._T_measures[:,:-1]
 
         def compute_energy(temp: np.array, sigma_obs: float = 1):
             norm = sum(np.linalg.norm(x-y) for x,y in zip(temp,temp_ref))
             return 0.5*(norm/sigma_obs)**2
 
         def compute_acceptance(actual_energy: float, prev_energy: float):
-            return min(1, np.exp((prev_energy-actual_energy)/len(self._times)**2))
+            return min(1, np.exp((prev_energy-actual_energy)/len(self._times)**3))
         
         self._states = list()
         
         init_param = caracs.sample_params()
         self.compute_solve_transi(init_param, nb_cells)
-        
-        ind_ref = [
-            10, 20
-        ]
         
         self._states.append(State(
             params = init_param,
@@ -188,19 +187,9 @@ class Column:
     all_lambda_s = property(get_all_lambda_s)
     
     @compute_mcmc.needed
-    def get_all_rhos(self):
-        return [s.params.rhos for s in self._states]
-    all_rhos = property(get_all_rhos)
-    
-    @compute_mcmc.needed
-    def get_all_cs(self):
-        return [s.params.cs for s in self._states]
-    all_cs = property(get_all_cs)
-    
-    @compute_mcmc.needed
-    def get_all_rhoscs(self):
-        return [s.params.rhos*s.params.cs for s in self._states]
-    all_rhoscs = property(get_all_rhoscs)
+    def get_all_rhos_cs(self):
+        return [s.params.rhos_cs for s in self._states]
+    all_rhos_cs = property(get_all_rhos_cs)
 
     @compute_mcmc.needed
     def get_all_energy(self):
@@ -213,12 +202,12 @@ class Column:
     all_acceptance_ratio = property(get_all_acceptance_ratio)
     
     @compute_mcmc.needed
-    def get_temps_quantile(self, t = None, z = None, quantile = .5):
-        if z is None:
-            z_ind = Ellipsis
+    def get_temps_quantile(self, t = None, depth = None, quantile = .5):
+        if depth is None:
+            depth_ind = Ellipsis
         else:
-            z_ind = np.argmin(np.abs(self.depths_solve-z))
-        all_temp = np.dstack([s.temps[:,z_ind] for s in self._states])
+            depth_ind = np.argmin(np.abs(self.depths_solve-depth))
+        all_temp = np.dstack([s.temps[:,depth_ind] for s in self._states])
         return np.squeeze(np.quantile(
             all_temp,
             quantile,
@@ -226,16 +215,16 @@ class Column:
         ))
     
     @compute_mcmc.needed
-    def get_H_quantile(self, t = None, z = None, quantile = .5):
-        if z is None:
-            z_ind = Ellipsis
+    def get_H_quantile(self, t = None, depth = None, quantile = .5):
+        if depth is None:
+            depth_ind = Ellipsis
         else:
-            z_ind = np.argmin(np.abs(self.depths_solve-z))
-        all_flows = np.dstack([s.flows[:,z_ind] for s in self._states])
-        return np.quantile(
+            depth_ind = np.argmin(np.abs(self.depths_solve-depth))
+        all_flows = np.dstack([s.flows[:,depth_ind] for s in self._states])
+        return np.squeeze(np.quantile(
             all_flows,
             quantile,
             axis = -1
-        )
+        ))
     
 __all__ = ["Column"]
