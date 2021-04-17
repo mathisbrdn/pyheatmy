@@ -11,7 +11,7 @@ class Carac:
     range: tuple
     sigma: float
 
-    def perturb(self, val, /):
+    def perturb(self, val):
         new_val = val + gauss(0, self.sigma)
         while new_val > self.range[1]:
             new_val -= self.range[1]-self.range[0]
