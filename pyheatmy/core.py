@@ -107,7 +107,7 @@ class Column:
             np.argmin(np.abs(z-np.linspace(self._real_z[0], self._real_z[-1], nb_cells)))
             for z in self._real_z[1:-1]
         ]
-        temp_ref = self._T_measures[:,:-1]
+        temp_ref = self._T_measures[:,:]
 
         def compute_energy(temp: np.array, sigma_obs: float = 1):
             norm = sum(np.linalg.norm(x-y) for x,y in zip(temp,temp_ref))
