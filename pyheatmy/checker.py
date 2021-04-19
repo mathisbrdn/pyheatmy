@@ -7,7 +7,7 @@ def checker(checked_meth):
     def reset():
         nonlocal computed
         computed = False
-        
+
     def needed(meth):
         @wraps(meth)
         def new_meth(self, *args, **kargs):

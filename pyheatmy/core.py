@@ -1,9 +1,11 @@
-from typing import Sequence, Union
+from typing import Sequence, Union, List
 from random import random, choice
 from operator import attrgetter
+from numbers import Number
 
 import numpy as np
 from tqdm import trange
+from numba import njit
 
 from .params import *
 from .state import *
@@ -50,16 +52,16 @@ class Column:
         heigth = abs(self._real_z[-1]-self._real_z[0])
         Ss = param.n / dz
 
-        H_res = np.zeros((len(self._times), nb_cells))
-        temps = np.zeros((len(self._times), nb_cells))
+        H_res = np.zeros((len(self._times), nb_cells), dtype = np.float32)
+        temps = np.zeros((len(self._times), nb_cells), dtype = np.float32)
 
-        H_res[0] = self._dH[0]*(1 - np.linspace(0, 1, nb_cells))
-        temps[0] = self._T_measures[0][0] + (self._T_measures[0][-1] - self._T_measures[0][0]) * np.linspace(0, 1, nb_cells)
-        #print(H_res[0])
+        H_res[0] = np.linspace(self._dH[0]*heigth, 0, nb_cells)
+        temps[0] = np.linspace(self._T_riv[0], self._T_aq[0], nb_cells)
+        
         for k in range(1, len(self._times)):
             dt = (self._times[k]-self._times[k-1]).total_seconds()
             H_res[k] = compute_next_h(K, Ss, dt, dz, H_res[k-1], self._dH[k]*heigth, 0)
-            temps[k] = compute_next_temp(param, dt, dz, temps[k-1], H_res[k], H_res[k-1], self._T_measures[k][0], self._T_measures[k][-1])
+            temps[k] = compute_next_temp(param, dt, dz, temps[k-1], H_res[k], H_res[k-1], self._T_riv[k], self._T_aq[k])
 
         self._temps = temps
         self._flows = K*(H_res[:,1]-H_res[:,0])/dz
@@ -96,8 +98,9 @@ class Column:
         raise NotImplementedError
 
     @checker
-    def compute_mcmc(self, nb_iter: int, priors: dict, nb_cells: int):
-        assert isinstance(nb_iter, int)
+    def compute_mcmc(self, nb_iter: int, priors: dict, nb_cells: int, quantile:Union[float, Sequence[float]]=(.05,.5,.95)):
+        if isinstance(quantile, Number):
+            quantile = [quantile]
         
         caracs = ParamsCaracs(
             [Carac((a,b),c) for (a,b),c in (priors[lbl] for lbl in PARAM_LIST)]
@@ -107,27 +110,35 @@ class Column:
             np.argmin(np.abs(z-np.linspace(self._real_z[0], self._real_z[-1], nb_cells)))
             for z in self._real_z[1:-1]
         ]
-        temp_ref = self._T_measures[:,:-1]
+        temp_ref = self._T_measures[:,:]
 
         def compute_energy(temp: np.array, sigma_obs: float = 1):
             norm = sum(np.linalg.norm(x-y) for x,y in zip(temp,temp_ref))
             return 0.5*(norm/sigma_obs)**2
-
+        
         def compute_acceptance(actual_energy: float, prev_energy: float):
-            return min(1, np.exp((prev_energy-actual_energy)/len(self._times)**3))
+            return min(1, np.exp((prev_energy-actual_energy)/len(self._times)**1))
         
         self._states = list()
         
-        init_param = caracs.sample_params()
-        self.compute_solve_transi(init_param, nb_cells)
+        nb_z = np.linspace(self._real_z[0], self._real_z[-1], nb_cells).size
+        _temps = np.zeros((nb_iter+1, len(self._times), nb_z), np.float32)
+        _flows = np.zeros((nb_iter+1, len(self._times)), np.float32)
         
-        self._states.append(State(
-            params = init_param,
-            energy = compute_energy(self.temps_solve[:,ind_ref]),
-            ratio_accept = 1,
-            temps = self.temps_solve,
-            flows = self.flows_solve
-        ))
+        for _ in range(100):
+            init_param = caracs.sample_params()
+            self.compute_solve_transi(init_param, nb_cells)
+
+            self._states.append(State(
+                params = init_param,
+                energy = compute_energy(self.temps_solve[:,ind_ref]),
+                ratio_accept = 1,
+            ))
+            
+        self._states = [min(self._states, key = attrgetter("energy"))]
+        
+        _temps[0] = self.temps_solve
+        _flows[0] = self.flows_solve
         
         for _ in trange(nb_iter, desc = "Mcmc Computation "):
             params = caracs.perturb(self._states[-1].params)
@@ -139,13 +150,24 @@ class Column:
                     params = params,
                     energy = energy,
                     ratio_accept = ratio_accept,
-                    temps = self.temps_solve,
-                    flows = self.flows_solve
                 ))
+                _temps[_] = self.temps_solve
+                _flows[_] = self.flows_solve
             else: 
                 self._states.append(self._states[-1])
                 self._states[-1].ratio_accept = ratio_accept
+                _temps[_] = _temps[_-1]
+                _flows[_] = _flows[_-1]
             self.compute_solve_transi.reset()
+            
+        self._quantiles_temps = {
+            quant: res
+            for quant, res in zip(quantile, np.quantile(_temps, quantile, axis = 0))
+        }
+        self._quantiles_flows = {
+            quant: res
+            for quant, res in zip(quantile, np.quantile(_flows, quantile, axis = 0))
+        }
 
     @compute_mcmc.needed
     def get_depths_mcmc(self):
@@ -155,7 +177,7 @@ class Column:
     @compute_mcmc.needed
     def get_times_mcmc(self):
         return self._times
-    depths_mcmc = property(get_times_mcmc)
+    times_mcmc = property(get_times_mcmc)
 
     @compute_mcmc.needed
     def sample_param(self):
@@ -164,7 +186,7 @@ class Column:
     @compute_mcmc.needed
     def get_best_param(self):
         """return the params that minimize the energy"""
-        return min(self._states, key=getattr("energy")).params
+        return min(self._states, key=attrgetter("energy")).params
 
     @compute_mcmc.needed
     def get_all_params(self):
@@ -202,29 +224,11 @@ class Column:
     all_acceptance_ratio = property(get_all_acceptance_ratio)
     
     @compute_mcmc.needed
-    def get_temps_quantile(self, t = None, depth = None, quantile = .5):
-        if depth is None:
-            depth_ind = Ellipsis
-        else:
-            depth_ind = np.argmin(np.abs(self.depths_solve-depth))
-        all_temp = np.dstack([s.temps[:,depth_ind] for s in self._states])
-        return np.squeeze(np.quantile(
-            all_temp,
-            quantile,
-            axis = -1
-        ))
+    def get_temps_quantile(self, quantile):
+        return self._quantiles_temps[quantile]
     
     @compute_mcmc.needed
-    def get_H_quantile(self, t = None, depth = None, quantile = .5):
-        if depth is None:
-            depth_ind = Ellipsis
-        else:
-            depth_ind = np.argmin(np.abs(self.depths_solve-depth))
-        all_flows = np.dstack([s.flows[:,depth_ind] for s in self._states])
-        return np.squeeze(np.quantile(
-            all_flows,
-            quantile,
-            axis = -1
-        ))
+    def get_flows_quantile(self, quantile):
+        return self._quantiles_flows[quantile]
     
 __all__ = ["Column"]
