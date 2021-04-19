@@ -164,7 +164,7 @@ class Column:
     @compute_mcmc.needed
     def get_best_param(self):
         """return the params that minimize the energy"""
-        return min(self._states, key=getattr("energy")).params
+        return min(self._states, key=attrgetter("energy")).params
 
     @compute_mcmc.needed
     def get_all_params(self):
