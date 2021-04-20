@@ -47,5 +47,3 @@ solver(.1*ones(1),ones(2),-ones(1),ones(2))
 tri_product(ones(1),ones(2),ones(1),ones(2))
 
 __all__ = ["solver", "tri_product"]
-import numpy as np
-print(tri_product(np.array([-1, 4]),np.array([1,2,-6]),np.array([2,5]),np.array([ 1.0454545,0.47727275, -0.18181819])))
