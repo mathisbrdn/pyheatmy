@@ -1,11 +1,10 @@
-from typing import Sequence, Union, List
+from typing import Sequence, Union
 from random import random, choice
 from operator import attrgetter
 from numbers import Number
 
 import numpy as np
 from tqdm import trange
-from numba import njit
 
 from .params import *
 from .state import *

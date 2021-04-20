@@ -1,5 +1,4 @@
-from numpy import eye, zeros, exp, ones, float32
-from numpy.linalg import solve
+from numpy import ones, float32
 from numba import njit
 
 from .solver import solver, tri_product

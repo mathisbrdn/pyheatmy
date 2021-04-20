@@ -1,6 +1,5 @@
 from numba import njit
 from numpy import ones, zeros, float32
-import numpy as np
 
 @njit
 def solver(a, b, c, d):
