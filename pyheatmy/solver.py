@@ -1,15 +1,15 @@
 from numba import njit
-from numpy import ones, zeros
+from numpy import ones, zeros, float32
 import numpy as np
 
 @njit
 def solver(a, b, c, d):
     nf = len(d)
 
-    ac = a.astype(np.float32)
-    bc = b.astype(np.float32)
-    cc = c.astype(np.float32)
-    dc = d.astype(np.float32)
+    ac = a.astype(float32)
+    bc = b.astype(float32)
+    cc = c.astype(float32)
+    dc = d.astype(float32)
     
     for it in range(1, nf):
         mc = ac[it-1]/bc[it-1]
@@ -27,12 +27,12 @@ def solver(a, b, c, d):
 @njit
 def tri_product(a,b,c,d):
     n = len(d)
-    res = zeros(n)
+    res = zeros(n, dtype = float32)
     
-    ac = a.astype(np.float32)
-    bc = b.astype(np.float32)
-    cc = c.astype(np.float32)
-    dc = d.astype(np.float32)
+    ac = a.astype(float32)
+    bc = b.astype(float32)
+    cc = c.astype(float32)
+    dc = d.astype(float32)
     
     res[0] = dc[0]*bc[0] + dc[1]*cc[0]
     res[n-1] = dc[n-1]*bc[n-1] + dc[n-2]*ac[n-2]

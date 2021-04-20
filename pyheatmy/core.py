@@ -158,7 +158,7 @@ class Column:
                 self._states[-1].ratio_accept = ratio_accept
                 _temps[_] = _temps[_-1]
                 _flows[_] = _flows[_-1]
-            self.compute_solve_transi.reset()
+        self.compute_solve_transi.reset(self)
             
         self._quantiles_temps = {
             quant: res
