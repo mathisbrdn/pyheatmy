@@ -14,11 +14,11 @@ with open('LICENSE') as f:
 setup(
     name='pyheatmy',
     version='0.1.0',
-    description='Sample package for Python-Guide.org',
+    description='PyHeat',
     long_description=readme,
-    author='Kenneth Reitz',
-    author_email='me@kennethreitz.com',
-    url='https://github.com/kennethreitz/samplemod',
+    author='Mathis Bourdin, Youri Tchouboukoff',
+    author_email='mathis.bourdin@mines-paristech.fr, youri.tchouboukoff@mines-paristech.fr',
+    url='https://github.com/mathisbrdn/pyheatmy/',
     license=license,
     packages=find_packages(exclude=())
 )
