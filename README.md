@@ -26,8 +26,6 @@ Each property has its own public getter in *get_nameproperty* format.
 
 To ensure consistent results, a checker is added where the user cannot call results if he has not executed the corresponding methods. In particular, if you run a Bayesian inversion the results of the transient model must be recalculated.
 
-For the moment, temperatures are calculated according to T_measures, but you can already enter T_aq and T_riv which will be taken into account soon.
-
 ***
 
 ## License

@@ -9,12 +9,12 @@ def solver(a, b, c, d):
     bc = b.astype(float32)
     cc = c.astype(float32)
     dc = d.astype(float32)
-    
+
     for it in range(1, nf):
         mc = ac[it-1]/bc[it-1]
-        bc[it] = bc[it] - mc*cc[it-1] 
+        bc[it] = bc[it] - mc*cc[it-1]
         dc[it] = dc[it] - mc*dc[it-1]
-        	    
+
     xc = bc
     xc[-1] = dc[-1]/bc[-1]
 
@@ -27,18 +27,18 @@ def solver(a, b, c, d):
 def tri_product(a,b,c,d):
     n = len(d)
     res = zeros(n, dtype = float32)
-    
+
     ac = a.astype(float32)
     bc = b.astype(float32)
     cc = c.astype(float32)
     dc = d.astype(float32)
-    
+
     res[0] = dc[0]*bc[0] + dc[1]*cc[0]
     res[n-1] = dc[n-1]*bc[n-1] + dc[n-2]*ac[n-2]
-    
+
     for ix in range(1,n-1):
         res[ix] = ac[ix-1]*dc[ix-1] + bc[ix]*dc[ix] + cc[ix]*dc[ix+1]
-        
+
     return res
 
 #Pour forcer la compilation à l'init

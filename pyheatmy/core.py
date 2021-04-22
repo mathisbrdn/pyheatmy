@@ -12,7 +12,7 @@ from .utils import *
 from .checker import *
 
 class Column:
-    
+
     def __init__(
             self,
             river_bed: float,
@@ -24,7 +24,7 @@ class Column:
             sigma_meas_T: float):
         self.depth_sensors = depth_sensors
         self.offset = offset
-        
+
         #! Pour l'instant on suppose que les temps matchent
         self._times = [t for t,_ in dH_measures]
         self._dH = np.array([d for _,(d, _) in dH_measures])
@@ -45,7 +45,7 @@ class Column:
         if not isinstance(param, Param):
             param = Param(*param)
         self._param = param
-        
+
         self._z_solve = np.linspace(self._real_z[0], self._real_z[-1], nb_cells)
         dz = abs(self._z_solve[1]-self._z_solve[0])
         K = 10**-param.moinslog10K
@@ -57,7 +57,7 @@ class Column:
 
         H_res[0] = np.linspace(self._dH[0]*heigth, 0, nb_cells)
         temps[0] = np.linspace(self._T_riv[0], self._T_aq[0], nb_cells)
-        
+
         for k in range(1, len(self._times)):
             dt = (self._times[k]-self._times[k-1]).total_seconds()
             H_res[k] = compute_next_h(K, Ss, dt, dz, H_res[k-1], self._dH[k]*heigth, 0)
@@ -65,42 +65,42 @@ class Column:
 
         self._temps = temps
         self._flows = K*(H_res[:,1]-H_res[:,0])/dz
-    
-    @compute_solve_transi.needed    
+
+    @compute_solve_transi.needed
     def get_depths_solve(self):
         return self._z_solve
     depths_solve = property(get_depths_solve)
-    
+
     def get_times_solve(self):
         return self._times
     times_solve = property(get_times_solve)
-    
-    @compute_solve_transi.needed    
+
+    @compute_solve_transi.needed
     def get_temps_solve(self, z=None):
         if z is None:
             return self._temps
         z_ind = np.argmin(np.abs(self.depths_solve-z))
         return self._temps[:,z_ind]
     temps_solve = property(get_temps_solve)
-    
+
     @compute_solve_transi.needed
     def get_temps_advectif(self):
         return -RHO_W*C_W*self.temps_solve
-    
+
     @compute_solve_transi.needed
     def get_temps_conductif(self):
         lambda_m = (self._param.n*(LAMBDA_W)**.5 + (1.-self._param.n)*(self._param.lambda_s)**.5)**2
         dz = abs(self._z_solve[1]-self._z_solve[0])
         return lambda_m*np.grad(self._temps, dz)
-    
-    @compute_solve_transi.needed    
+
+    @compute_solve_transi.needed
     def get_flows_solve(self, z=None):
         if z is None:
             return self._flows
         z_ind = np.argmin(np.abs(self.depths_solve-z))
         return self._flows[:,z_ind]
     flows_solve = property(get_flows_solve)
-    
+
     def solve_anal(self, param: tuple, P: Union[float, Sequence]):
         #Renvoie la solution analytique avec plusieurs composantes
         #si plusieurs periodes données
@@ -111,11 +111,11 @@ class Column:
     def compute_mcmc(self, nb_iter: int, priors: dict, nb_cells: int, quantile:Union[float, Sequence[float]]=(.05,.5,.95)):
         if isinstance(quantile, Number):
             quantile = [quantile]
-        
+
         caracs = ParamsCaracs(
             [Carac((a,b),c) for (a,b),c in (priors[lbl] for lbl in PARAM_LIST)]
         )
-        
+
         ind_ref = [
             np.argmin(np.abs(z-np.linspace(self._real_z[0], self._real_z[-1], nb_cells)))
             for z in self._real_z[1:-1]
@@ -126,16 +126,16 @@ class Column:
             #norm = sum(np.linalg.norm(x-y) for x,y in zip(temp,temp_ref))
             norm = np.sum(np.linalg.norm(temp-temp_ref, axis = -1))
             return 0.5*(norm/sigma_obs)**2
-        
+
         def compute_acceptance(actual_energy: float, prev_energy: float):
             return min(1, np.exp((prev_energy-actual_energy)/len(self._times)**1))
-        
+
         self._states = list()
-        
+
         nb_z = np.linspace(self._real_z[0], self._real_z[-1], nb_cells).size
         _temps = np.zeros((nb_iter+1, len(self._times), nb_z), np.float32)
         _flows = np.zeros((nb_iter+1, len(self._times)), np.float32)
-        
+
         for _ in trange(100, desc = "Init Mcmc "):
             init_param = caracs.sample_params()
             self.compute_solve_transi(init_param, nb_cells)
@@ -145,12 +145,12 @@ class Column:
                 energy = compute_energy(self.temps_solve[:,ind_ref]),
                 ratio_accept = 1,
             ))
-            
+
         self._states = [min(self._states, key = attrgetter("energy"))]
-        
+
         _temps[0] = self.temps_solve
         _flows[0] = self.flows_solve
-        
+
         for _ in trange(nb_iter, desc = "Mcmc Computation "):
             params = caracs.perturb(self._states[-1].params)
             self.compute_solve_transi(params, nb_cells)
@@ -164,13 +164,13 @@ class Column:
                 ))
                 _temps[_] = self.temps_solve
                 _flows[_] = self.flows_solve
-            else: 
+            else:
                 self._states.append(self._states[-1])
                 self._states[-1].ratio_accept = ratio_accept
                 _temps[_] = _temps[_-1]
                 _flows[_] = _flows[_-1]
         self.compute_solve_transi.reset(self)
-            
+
         self._quantiles_temps = {
             quant: res
             for quant, res in zip(quantile, np.quantile(_temps, quantile, axis = 0))
@@ -193,7 +193,7 @@ class Column:
     @compute_mcmc.needed
     def sample_param(self):
         return choice([s.params for s in self._states])
-    
+
     @compute_mcmc.needed
     def get_best_param(self):
         """return the params that minimize the energy"""
@@ -218,7 +218,7 @@ class Column:
     def get_all_lambda_s(self):
         return [s.params.lambda_s for s in self._states]
     all_lambda_s = property(get_all_lambda_s)
-    
+
     @compute_mcmc.needed
     def get_all_rhos_cs(self):
         return [s.params.rhos_cs for s in self._states]
@@ -233,13 +233,13 @@ class Column:
     def get_all_acceptance_ratio(self):
         return [s.ratio_accept for s in self._states]
     all_acceptance_ratio = property(get_all_acceptance_ratio)
-    
+
     @compute_mcmc.needed
     def get_temps_quantile(self, quantile):
         return self._quantiles_temps[quantile]
-    
+
     @compute_mcmc.needed
     def get_flows_quantile(self, quantile):
         return self._quantiles_flows[quantile]
-    
+
 __all__ = ["Column"]
