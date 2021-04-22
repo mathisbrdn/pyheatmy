@@ -10,6 +10,9 @@ from .params import Param, ParamsCaracs, Carac
 from .state import State
 from .checker import checker
 from .utils import (
+    C_W,
+    RHO_W,
+    LAMBDA_W,
     PARAM_LIST,
     compute_next_h,
     compute_next_temp
@@ -141,7 +144,7 @@ class Column:
         _temps = np.zeros((nb_iter+1, len(self._times), nb_z), np.float32)
         _flows = np.zeros((nb_iter+1, len(self._times)), np.float32)
 
-        for _ in trange(100, desc = "Init Mcmc "):
+        for _ in trange(1000, desc = "Init Mcmc "):
             init_param = caracs.sample_params()
             self.compute_solve_transi(init_param, nb_cells)
 
