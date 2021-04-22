@@ -1,5 +1,5 @@
-from numpy import ones, float32, full
-from numba import njit, jit
+from numpy import float32, full
+from numba import njit
 
 from .solver import solver, tri_product
 
@@ -40,7 +40,6 @@ def compute_next_temp(moinslog10K, n, lambda_s, rhos_cs, dt, dz, temp_prev, H, H
 
     a = (ke/dz**2-dH*(.5*ae/dz)) * alpha
     a[-1] = 0.
-    b = -2*ke/dz**2 * ones(N, dtype = float32) * alpha - 1/dt
     b = full(N, -alpha*2*ke/dz**2 - 1/dt, dtype = float32)
     b[0], b[-1] = 1., 1.
     c = (ke/dz**2+dH*(.5*ae/dz)) * alpha

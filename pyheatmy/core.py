@@ -6,10 +6,15 @@ from numbers import Number
 import numpy as np
 from tqdm import trange
 
-from .params import *
-from .state import *
-from .utils import *
-from .checker import *
+from .params import Param, ParamsCaracs, Carac
+from .state import State
+from .checker import checker
+from .utils import (
+    PARAM_LIST,
+    compute_next_h,
+    compute_next_temp
+)
+
 
 class Column:
 

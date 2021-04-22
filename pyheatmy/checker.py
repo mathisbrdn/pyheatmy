@@ -1,10 +1,9 @@
 """
-Module that implements a decorator allowing a bound method written in Python to become a "checker".
+Module that implements a decorator allowing a method of user-defined class instance to become a "checker".
 Also creates a new associated error type.
 """
 
 from functools import wraps
-from inspect import ismethod
 
 
 class ComputationOrderException(Exception):
@@ -13,28 +12,26 @@ class ComputationOrderException(Exception):
 
 def checker(checked_meth):
     """
-    Transform a bound method written in Python to a "checker" method.
+    Transform a bound method of user-defined class instance to a "checker" method.
     Each method decorated with the .needed would raise a ComputationOrderException.
     It is also possible to reset the checker with .reset.
 
     Args:
-        checked_meth (method): a bound method written in Python
+        checked_meth (method): a bound method of user-defined class instance
 
     Returns:
             method: checker method
     """
 
-    assert ismethod(checked_meth), "checked_meth has to be a method"
-
     def reset(col):
-        col.__dict__["_" + checked_meth.__name__] = False
+        col.__dict__[check_name] = False
 
     def needed(meth):
         @wraps(meth)
         def new_meth(self, *args, **kargs):
             if (
-                "_" + checked_meth.__name__ in self.__dict__
-                and self.__dict__["_" + checked_meth.__name__]
+                check_name in self.__dict__
+                and self.__dict__[check_name]
             ):
                 return meth(self, *args, **kargs)
             raise ComputationOrderException(
@@ -45,9 +42,10 @@ def checker(checked_meth):
 
     @wraps(checked_meth)
     def wrapper(self, *args, **kwargs):
-        self.__dict__["_" + checked_meth.__name__] = True
+        self.__dict__[check_name] = True
         return checked_meth(self, *args, **kwargs)
 
+    check_name = "_" + checked_meth.__name__
     wrapper.reset = reset
     wrapper.needed = needed
     return wrapper
