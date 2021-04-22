@@ -73,13 +73,3 @@ def compute_next_h(K, Ss, dt, dz, H_prev, H0, Hn, alpha = .7):
     c[0] = 0
 
     return solver(a, b, c, lim)
-
-
-__all__ = [
-    "LAMBDA_W",
-    "RHO_W",
-    "C_W",
-    "PARAM_LIST",
-    "compute_next_temp",
-    "compute_next_h"
-]

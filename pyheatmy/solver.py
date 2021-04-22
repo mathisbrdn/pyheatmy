@@ -44,5 +44,3 @@ def tri_product(a,b,c,d):
 #Pour forcer la compilation à l'init
 solver(.1*ones(1),ones(2),-ones(1),ones(2))
 tri_product(ones(1),ones(2),ones(1),ones(2))
-
-__all__ = ["solver", "tri_product"]

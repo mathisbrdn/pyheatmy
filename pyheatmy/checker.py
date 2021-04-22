@@ -51,6 +51,3 @@ def checker(checked_meth):
     wrapper.reset = reset
     wrapper.needed = needed
     return wrapper
-
-
-__all__ = ["checker"]

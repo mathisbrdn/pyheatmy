@@ -241,5 +241,3 @@ class Column:
     @compute_mcmc.needed
     def get_flows_quantile(self, quantile):
         return self._quantiles_flows[quantile]
-
-__all__ = ["Column"]
