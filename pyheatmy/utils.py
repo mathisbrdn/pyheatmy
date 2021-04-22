@@ -1,5 +1,5 @@
-from numpy import ones, float32
-from numba import njit
+from numpy import ones, float32, full
+from numba import njit, jit
 
 from .solver import solver, tri_product
 
@@ -14,16 +14,16 @@ PARAM_LIST = (
     "rhos_cs",
 )
 
-#@njit()
-def compute_next_temp(param, dt, dz, temp_prev, H, H_prev, t0, tn, alpha = .7):
+@njit()
+def compute_next_temp(moinslog10K, n, lambda_s, rhos_cs, dt, dz, temp_prev, H, H_prev, t0, tn, alpha = .7):
     N = H_prev.size
     H = H.astype(float32)
     H_prev = H_prev.astype(float32)
     temp_prev = temp_prev.astype(float32)
 
-    rho_mc_m = param.n*RHO_W*C_W + (1-param.n)*param.rhos_cs
-    K = 10**-param.moinslog10K
-    lambda_m = (param.n*(LAMBDA_W)**.5 + (1.-param.n)*(param.lambda_s)**.5)**2
+    rho_mc_m = n*RHO_W*C_W + (1-n)*rhos_cs
+    K = 10.**-moinslog10K
+    lambda_m = (n*(LAMBDA_W)**.5 + (1.-n)*(lambda_s)**.5)**2
 
     ke = lambda_m/rho_mc_m
     ae = RHO_W*C_W*K/rho_mc_m

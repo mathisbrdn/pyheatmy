@@ -44,6 +44,7 @@ class Column:
     def compute_solve_transi(self, param: tuple, nb_cells: int):
         if not isinstance(param, Param):
             param = Param(*param)
+        self._param = param
         
         self._z_solve = np.linspace(self._real_z[0], self._real_z[-1], nb_cells)
         dz = abs(self._z_solve[1]-self._z_solve[0])
@@ -60,7 +61,7 @@ class Column:
         for k in range(1, len(self._times)):
             dt = (self._times[k]-self._times[k-1]).total_seconds()
             H_res[k] = compute_next_h(K, Ss, dt, dz, H_res[k-1], self._dH[k]*heigth, 0)
-            temps[k] = compute_next_temp(param, dt, dz, temps[k-1], H_res[k], H_res[k-1], self._T_riv[k], self._T_aq[k])
+            temps[k] = compute_next_temp(*param[:], dt, dz, temps[k-1], H_res[k], H_res[k-1], self._T_riv[k], self._T_aq[k])
 
         self._temps = temps
         self._flows = K*(H_res[:,1]-H_res[:,0])/dz
@@ -81,6 +82,16 @@ class Column:
         z_ind = np.argmin(np.abs(self.depths_solve-z))
         return self._temps[:,z_ind]
     temps_solve = property(get_temps_solve)
+    
+    @compute_solve_transi.needed
+    def get_temps_advectif(self):
+        return -RHO_W*C_W*self.temps_solve
+    
+    @compute_solve_transi.needed
+    def get_temps_conductif(self):
+        lambda_m = (self._param.n*(LAMBDA_W)**.5 + (1.-self._param.n)*(self._param.lambda_s)**.5)**2
+        dz = abs(self._z_solve[1]-self._z_solve[0])
+        return lambda_m*np.grad(self._temps, dz)
     
     @compute_solve_transi.needed    
     def get_flows_solve(self, z=None):
@@ -112,7 +123,8 @@ class Column:
         temp_ref = self._T_measures[:,:]
 
         def compute_energy(temp: np.array, sigma_obs: float = 1):
-            norm = sum(np.linalg.norm(x-y) for x,y in zip(temp,temp_ref))
+            #norm = sum(np.linalg.norm(x-y) for x,y in zip(temp,temp_ref))
+            norm = np.sum(np.linalg.norm(temp-temp_ref, axis = -1))
             return 0.5*(norm/sigma_obs)**2
         
         def compute_acceptance(actual_energy: float, prev_energy: float):
@@ -124,7 +136,7 @@ class Column:
         _temps = np.zeros((nb_iter+1, len(self._times), nb_z), np.float32)
         _flows = np.zeros((nb_iter+1, len(self._times)), np.float32)
         
-        for _ in range(100):
+        for _ in trange(100, desc = "Init Mcmc "):
             init_param = caracs.sample_params()
             self.compute_solve_transi(init_param, nb_cells)
 
