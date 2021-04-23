@@ -92,14 +92,16 @@ class Column:
     temps_solve = property(get_temps_solve)
 
     @compute_solve_transi.needed
-    def get_temps_advectif(self):
+    def get_advec_flows_solve(self):
         return -RHO_W*C_W*self.temps_solve
+    advec_flows_solve = property(get_advec_flows_solve)
 
     @compute_solve_transi.needed
-    def get_temps_conductif(self):
+    def get_conduc_flows_solve(self):
         lambda_m = (self._param.n*(LAMBDA_W)**.5 + (1.-self._param.n)*(self._param.lambda_s)**.5)**2
         dz = abs(self._z_solve[1]-self._z_solve[0])
-        return lambda_m*np.grad(self._temps, dz)
+        return lambda_m*np.gradient(self.temps_solve, dz, axis = -1)
+    conduc_flows_solve = property(get_conduc_flows_solve)
 
     @compute_solve_transi.needed
     def get_flows_solve(self, z=None):
