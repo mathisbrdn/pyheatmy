@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import trange
 from scipy.interpolate import lagrange
 
-from .params import Param, ParamsCaracs, Carac
+from .params import Param, ParamsPriors, Prior
 from .state import State
 from .checker import checker
 from .utils import C_W, RHO_W, LAMBDA_W, PARAM_LIST, compute_next_h, compute_next_temp
@@ -32,7 +32,7 @@ class Column:
         self._times = [t for t, _ in dH_measures]
         self._dH = np.array([d for _, (d, _) in dH_measures])
         self._T_riv = np.array([t for _, (_, t) in dH_measures])
-        self._T_aq = np.array([t[-1] for _, t in T_measures])
+        self._T_aq = np.array([t[-1]-1 for _, t in T_measures])
         self._T_measures = np.array([t[:-1] for _, t in T_measures])
 
         self._real_z = +np.array([0] + depth_sensors) + river_bed + offset
@@ -44,10 +44,17 @@ class Column:
         return cls(**col_dict)
 
     @checker
-    def compute_solve_transi(self, param: tuple, nb_cells: int):
+    def compute_solve_transi(self, param: tuple, nb_cells: int, verbose = True):
         if not isinstance(param, Param):
             param = Param(*param)
         self._param = param
+        
+        if verbose:
+            print(
+                "--- Compute Solve Transi ---",
+                self._param,
+                sep = '\n'
+            )
 
         self._z_solve = np.linspace(self._real_z[0], self._real_z[-1], nb_cells)
         dz = abs(self._z_solve[1] - self._z_solve[0])
@@ -80,7 +87,11 @@ class Column:
             )
 
         self._temps = temps
+        self._H_res = H_res
         self._flows = - K * (H_res[:, 1] - H_res[:, 0]) / dz
+        
+        if verbose:
+            print("Done.")
 
     @compute_solve_transi.needed
     def get_depths_solve(self):
@@ -104,7 +115,8 @@ class Column:
 
     @compute_solve_transi.needed
     def get_advec_flows_solve(self):
-        return -RHO_W * C_W * self.temps_solve
+        dz = abs(self._z_solve[1] - self._z_solve[0])
+        return -RHO_W * C_W * 10**-self._param.moinslog10K * np.gradient(self._H_res, dz, axis = -1) * self.temps_solve
 
     advec_flows_solve = property(get_advec_flows_solve)
 
@@ -138,12 +150,13 @@ class Column:
         priors: dict,
         nb_cells: int,
         quantile: Union[float, Sequence[float]] = (0.05, 0.5, 0.95),
+        verbose = True
     ):
         if isinstance(quantile, Number):
             quantile = [quantile]
-
-        caracs = ParamsCaracs(
-            [Carac((a, b), c) for (a, b), c in (priors[lbl] for lbl in PARAM_LIST)]
+        
+        priors = ParamsPriors(
+            [Prior((a, b), c) for (a, b), c in (priors[lbl] for lbl in PARAM_LIST)]
         )
 
         ind_ref = [
@@ -163,6 +176,17 @@ class Column:
         def compute_acceptance(actual_energy: float, prev_energy: float):
             return min(1, np.exp((prev_energy - actual_energy) / len(self._times) ** 1))
 
+        if verbose:
+            print(
+                "--- Compute Mcmc ---",
+                "Priors :",
+                *(f"    {prior}" for prior in priors),
+                f"Number of cells : {nb_cells}",
+                f"Number of iterations : {nb_iter}",
+                "Launch Mcmc",
+                sep = '\n'
+            )
+
         self._states = list()
 
         nb_z = np.linspace(self._real_z[0], self._real_z[-1], nb_cells).size
@@ -170,8 +194,8 @@ class Column:
         _flows = np.zeros((nb_iter + 1, len(self._times)), np.float32)
 
         for _ in trange(1000, desc="Init Mcmc ", file = sys.stdout):
-            init_param = caracs.sample_params()
-            self.compute_solve_transi(init_param, nb_cells)
+            init_param = priors.sample_params()
+            self.compute_solve_transi(init_param, nb_cells, verbose = False)
 
             self._states.append(
                 State(
@@ -187,8 +211,8 @@ class Column:
         _flows[0] = self.flows_solve
 
         for _ in trange(nb_iter, desc="Mcmc Computation ", file=sys.stdout):
-            params = caracs.perturb(self._states[-1].params)
-            self.compute_solve_transi(params, nb_cells)
+            params = priors.perturb(self._states[-1].params)
+            self.compute_solve_transi(params, nb_cells, verbose = False)
             energy = compute_energy(self.temps_solve[:, ind_ref])
             ratio_accept = compute_acceptance(energy, self._states[-1].energy)
             if random() < ratio_accept:
@@ -208,6 +232,9 @@ class Column:
                 _flows[_] = _flows[_ - 1]
         self.compute_solve_transi.reset(self)
 
+        if verbose:
+            print("Mcmc Done.\n Start quantiles computation")
+        
         self._quantiles_temps = {
             quant: res
             for quant, res in zip(quantile, np.quantile(_temps, quantile, axis=0))
@@ -216,6 +243,8 @@ class Column:
             quant: res
             for quant, res in zip(quantile, np.quantile(_flows, quantile, axis=0))
         }
+        if verbose:
+            print("Quantiles Done.")
 
     @compute_mcmc.needed
     def get_depths_mcmc(self):

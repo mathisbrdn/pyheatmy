@@ -7,7 +7,7 @@ from .utils import PARAM_LIST
 Param = namedtuple("Parametres", PARAM_LIST)
 
 @dataclass
-class Carac:
+class Prior:
     range: tuple
     sigma: float
 
@@ -19,18 +19,21 @@ class Carac:
             new_val += self.range[1]-self.range[0]
         return new_val
 
-class ParamsCaracs:
-    def __init__(self, caracs):
-        self.caracs = caracs
+class ParamsPriors:
+    def __init__(self, priors):
+        self.priors = priors
 
     def sample_params(self):
         return Param(*(
-            uniform(*carac.range)
-            for carac in self.caracs
+            uniform(*prior.range)
+            for prior in self.priors
         ))
 
     def perturb(self, param):
         return Param(*(
-            carac.perturb(val)
-            for carac, val in zip(self.caracs, param)
+            prior.perturb(val)
+            for prior, val in zip(self.priors, param)
         ))
+        
+    def __iter__(self):
+        return self.priors.__iter__()
