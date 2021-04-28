@@ -2,6 +2,7 @@ from typing import Sequence, Union
 from random import random, choice
 from operator import attrgetter
 from numbers import Number
+import sys
 
 import numpy as np
 from tqdm import trange
@@ -168,7 +169,7 @@ class Column:
         _temps = np.zeros((nb_iter + 1, len(self._times), nb_z), np.float32)
         _flows = np.zeros((nb_iter + 1, len(self._times)), np.float32)
 
-        for _ in trange(1000, desc="Init Mcmc "):
+        for _ in trange(1000, desc="Init Mcmc ", file = sys.stdout):
             init_param = caracs.sample_params()
             self.compute_solve_transi(init_param, nb_cells)
 
@@ -185,7 +186,7 @@ class Column:
         _temps[0] = self.temps_solve
         _flows[0] = self.flows_solve
 
-        for _ in trange(nb_iter, desc="Mcmc Computation "):
+        for _ in trange(nb_iter, desc="Mcmc Computation ", file=sys.stdout):
             params = caracs.perturb(self._states[-1].params)
             self.compute_solve_transi(params, nb_cells)
             energy = compute_energy(self.temps_solve[:, ind_ref])
