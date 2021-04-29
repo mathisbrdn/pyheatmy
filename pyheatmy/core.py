@@ -35,7 +35,7 @@ class Column:
         self._T_aq = np.array([t[-1]-1 for _, t in T_measures])
         self._T_measures = np.array([t[:-1] for _, t in T_measures])
 
-        self._real_z = +np.array([0] + depth_sensors) + river_bed + offset
+        self._real_z = +np.array([0] + depth_sensors) + offset
         self._states = None
         self._z_solve = None
 
@@ -116,7 +116,7 @@ class Column:
     @compute_solve_transi.needed
     def get_advec_flows_solve(self):
         dz = abs(self._z_solve[1] - self._z_solve[0])
-        return -RHO_W * C_W * 10**-self._param.moinslog10K * np.gradient(self._H_res, dz, axis = -1) * self.temps_solve
+        return -RHO_W * C_W * 10**-self._param.moinslog10K * np.gradient(self._H_res, dz, axis = -1) * (self.temps_solve - (273.15 if self.temps_solve[0,0] > 200 else 0))
 
     advec_flows_solve = property(get_advec_flows_solve)
 
