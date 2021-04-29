@@ -1,4 +1,4 @@
-from numpy import float32, full
+from numpy import float32, full, gradient
 from numba import njit
 
 from .solver import solver, tri_product
@@ -17,11 +17,11 @@ PARAM_LIST = (
 
 @njit()
 def compute_next_temp(
-    moinslog10K, n, lambda_s, rhos_cs, dt, dz, temp_prev, H, H_prev, t0, tn, alpha=0.7
+    moinslog10K, n, lambda_s, rhos_cs, dt, dz, temp_prev, dH, dH_prev, t0, tn, alpha=0.7
 ):
-    N = H_prev.size
-    H = H.astype(float32)
-    H_prev = H_prev.astype(float32)
+    N = dH_prev.size
+    dH = dH.astype(float32)
+    dH_prev = dH_prev.astype(float32)
     temp_prev = temp_prev.astype(float32)
 
     rho_mc_m = n * RHO_W * C_W + (1 - n) * rhos_cs
@@ -30,34 +30,31 @@ def compute_next_temp(
 
     ke = lambda_m / rho_mc_m
     ae = RHO_W * C_W * K / rho_mc_m
-    dH = (H_prev[1:] - H_prev[:-1]) / dz
 
-    a = (-ke / dz ** 2 + dH * (ae / (2 * dz))) * (1 - alpha)
-    a[0] = -(1 - alpha) * (2 * ke / dz ** 2 - ae * dH[0] / (2 * dz))
-    a[-2] = -(1 - alpha) * (ke / dz ** 2 + ae * dH[-2] / (2 * dz))
+    a = (-ke / dz ** 2 + dH_prev[1:] * (ae / (2 * dz))) * (1 - alpha)
+    a[0] = -(1 - alpha) * (2 * ke / dz ** 2 - ae * dH_prev[0] / (2 * dz))
+    a[-2] = -(1 - alpha) * (ke / dz ** 2 + ae * dH_prev[-1] / (2 * dz))
     b = full(N, (1 - alpha) * 2 * ke / dz ** 2 - 1 / dt, dtype=float32)
     b[1] = -(1 - alpha) * (-2 * ke / dz ** 2) * (3 / 2) - 1 / dt
     b[-2] = -(1 - alpha) * (-2 * ke / dz ** 2) * (3 / 2) - 1 / dt
-    c = (-ke / dz ** 2 - dH * ae / (2 * dz)) * (1 - alpha)
-    c[1] = -(1 - alpha) * (ke / dz ** 2 + ae * dH[1] / (2 * dz))
-    c[-1] = -(1 - alpha) * (2 * ke / dz ** 2 - ae * dH[-1] / (2 * dz))
+    c = (-ke / dz ** 2 - dH_prev[:-1] * ae / (2 * dz)) * (1 - alpha)
+    c[1] = -(1 - alpha) * (ke / dz ** 2 + ae * dH_prev[0] / (2 * dz))
+    c[-1] = -(1 - alpha) * (2 * ke / dz ** 2 - ae * dH_prev[-1] / (2 * dz))
 
     lim = tri_product(a, b, c, temp_prev)
     lim[0], lim[-1] = t0, tn
 
-    dH = (H[1:] - H[:-1]) / dz
-
-    a = (ke / dz ** 2 - dH * ae / (2 * dz)) * alpha
+    a = (ke / dz ** 2 - dH[1:] * ae / (2 * dz)) * alpha
     a[0] = alpha * (2 * ke / dz ** 2 - ae * dH[0] / (2 * dz))
-    a[-2] = alpha * (ke / dz ** 2 + ae * dH[-2] / (2 * dz))
+    a[-2] = alpha * (ke / dz ** 2 + ae * dH[-1] / (2 * dz))
     a[-1] = 0.0
     b = full(N, -alpha * 2 * ke / dz ** 2 - 1 / dt, dtype=float32)
     b[0], b[-1] = 1.0, 1.0
     b[1] = alpha * (-2 * ke / dz ** 2) * (3 / 2) - 1 / dt
     b[-2] = alpha * (-2 * ke / dz ** 2) * (3 / 2) - 1 / dt
-    c = (ke / dz ** 2 + dH * ae / (2 * dz)) * alpha
+    c = (ke / dz ** 2 + dH[:-1] * ae / (2 * dz)) * alpha
     c[0] = 0.0
-    c[1] = alpha * (ke / dz ** 2 + ae * dH[1] / (2 * dz))
+    c[1] = alpha * (ke / dz ** 2 + ae * dH[0] / (2 * dz))
     c[-1] = alpha * (2 * ke / dz ** 2 - ae * dH[-1] / (2 * dz))
 
     return solver(a, b, c, lim)
