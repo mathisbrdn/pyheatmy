@@ -92,6 +92,7 @@ class Column:
         self._temps = temps[:,1:-1]
         self._H_res = H_res[:,1:-1]
         self._flows = - K * (H_res[:, 1] - H_res[:, 0]) / dz
+        self._z_solve = self._z_solve[1:]-dz/2
         
         if verbose:
             print("Done.")
