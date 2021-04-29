@@ -17,11 +17,11 @@ PARAM_LIST = (
 
 @njit()
 def compute_next_temp(
-    moinslog10K, n, lambda_s, rhos_cs, dt, dz, temp_prev, dH, dH_prev, t0, tn, alpha=0.7
+    moinslog10K, n, lambda_s, rhos_cs, dt, dz, temp_prev, H, H_prev, t0, tn, alpha=0.7
 ):
-    N = dH_prev.size
-    dH = dH.astype(float32)
-    dH_prev = dH_prev.astype(float32)
+    N = H_prev.size
+    H = H.astype(float32)
+    H_prev = H_prev.astype(float32)
     temp_prev = temp_prev.astype(float32)
 
     rho_mc_m = n * RHO_W * C_W + (1 - n) * rhos_cs
@@ -30,6 +30,9 @@ def compute_next_temp(
 
     ke = lambda_m / rho_mc_m
     ae = RHO_W * C_W * K / rho_mc_m
+    dH_prev = (H_prev[2:]-H_prev[:-2])/(2*dz)
+    dH_prev[0] = (H_prev[2]-H_prev[1])/dz
+    dH_prev[0] = (H_prev[-2]-H_prev[-3])/dz
 
     a = (-ke / dz ** 2 + dH_prev[1:] * (ae / (2 * dz))) * (1 - alpha)
     a[0] = -(1 - alpha) * (2 * ke / dz ** 2 - ae * dH_prev[0] / (2 * dz))
@@ -43,6 +46,10 @@ def compute_next_temp(
 
     lim = tri_product(a, b, c, temp_prev)
     lim[0], lim[-1] = t0, tn
+    
+    dH = (H[2:]-H[:-2])/(2*dz)
+    dH[0] = (H[2]-H[1])/dz
+    dH[0] = (H[-2]-H[-3])/dz
 
     a = (ke / dz ** 2 - dH[1:] * ae / (2 * dz)) * alpha
     a[0] = alpha * (2 * ke / dz ** 2 - ae * dH[0] / (2 * dz))
