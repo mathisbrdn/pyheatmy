@@ -71,7 +71,7 @@ def compute_next_h(K, Ss, dt, dz, H_prev, H0, Hn, alpha=0.7):
     k = K * (1 - alpha) / dz ** 2
 
     a = full(N - 1, -k, dtype=float32)
-    a[0] = -2 * (1 - alpha) * K * 4 / (3 * (dz) ** 2)
+    a[0] = -(1 - alpha) * K * 8 / (3 * (dz) ** 2)
     a[-2] = -(1 - alpha) * K * 4 / (3 * (dz) ** 2)
     b = full(N, 2 * k - Ss / dt, dtype=float32)
     b[1] = (1 - alpha) * K * 4 / (dz) ** 2 - Ss / dt

@@ -35,7 +35,8 @@ class Column:
         self._T_aq = np.array([t[-1]-1 for _, t in T_measures])
         self._T_measures = np.array([t[:-1] for _, t in T_measures])
 
-        self._real_z = +np.array([0] + depth_sensors) + offset
+        self._real_z = np.array([0] + depth_sensors) + offset
+        self._real_z[0] -= offset
         self._states = None
         self._z_solve = None
 
