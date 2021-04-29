@@ -82,8 +82,8 @@ class Column:
                 dt,
                 dz,
                 temps[k - 1],
-                np.gradient(H_res[k], dz),
-                np.gradient(H_res[k - 1], dz),
+                H_res[k],
+                H_res[k - 1],
                 self._T_riv[k],
                 self._T_aq[k]
             )
