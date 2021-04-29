@@ -1,4 +1,4 @@
-from numpy import float32, full, gradient
+from numpy import float32, full, gradient, zeros
 from numba import njit
 
 from .solver import solver, tri_product
@@ -31,9 +31,12 @@ def compute_next_temp(
     ke = lambda_m / rho_mc_m
     ae = RHO_W * C_W * K / rho_mc_m
     
-    dH_prev = (H_prev[2:]-H_prev[:-2])/(2*dz)
+    dH_prev = zeros(N, dtype = float32)
+    dH_prev[1:-1] = (H_prev[2:]-H_prev[:-2])/(2.*dz)
     dH_prev[0] = (H_prev[2]-H_prev[1])/dz
     dH_prev[-1] = (H_prev[-2]-H_prev[-3])/dz
+    #dH_prev = gradient(H_prev, dz)
+    
 
     a = (-ke / dz ** 2 + dH_prev[1:] * (ae / (2 * dz))) * (1 - alpha)
     a[0] = -(1 - alpha) * (2 * ke / dz ** 2 - ae * dH_prev[0] / (2 * dz))
@@ -48,10 +51,12 @@ def compute_next_temp(
     lim = tri_product(a, b, c, temp_prev)
     lim[0], lim[-1] = t0, tn
     
-    dH = (H[2:]-H[:-2])/(2*dz)
+    dH = zeros(N, dtype = float32)
+    dH[1:-1] = (H[2:]-H[:-2])/(2.*dz)
     dH[0] = (H[2]-H[1])/dz
-    dH[-1] = (H[-2]-H[-3])/dz
-
+    dH[-1] = (H[-2]-H_prev[-3])/dz
+    #dH = gradient(H, dz)
+    
     a = (ke / dz ** 2 - dH[1:] * ae / (2 * dz)) * alpha
     a[0] = alpha * (2 * ke / dz ** 2 - ae * dH[0] / (2 * dz))
     a[-2] = alpha * (ke / dz ** 2 + ae * dH[-1] / (2 * dz))
