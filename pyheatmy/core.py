@@ -57,8 +57,14 @@ class Column:
                 self._param,
                 sep = '\n'
             )
-
-        self._z_solve = np.linspace(self._real_z[0], self._real_z[-1], nb_cells)
+        dz = self._real_z[-1]/(nb_cells-1)
+        self._z_solve = np.concatenate(
+            [
+                np.array([0]),
+                np.linspace(dz/2, self._real_z[-1]-dz/2, nb_cells-2),
+                np.array([self._real_z[-1]])
+            ],
+            axis = 0)
         dz = abs(self._z_solve[1] - self._z_solve[0])
         K = 10 ** -param.moinslog10K
         heigth = abs(self._real_z[-1] - self._real_z[0])
@@ -92,7 +98,6 @@ class Column:
         self._temps = temps[:,1:-1]
         self._H_res = H_res[:,1:-1]
         self._flows = - K * (H_res[:, 1] - H_res[:, 0]) / dz
-        self._z_solve = self._z_solve[1:]-dz/2
         
         if verbose:
             print("Done.")
