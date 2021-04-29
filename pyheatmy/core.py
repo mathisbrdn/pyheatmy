@@ -46,6 +46,7 @@ class Column:
 
     @checker
     def compute_solve_transi(self, param: tuple, nb_cells: int, verbose = True):
+        nb_cells += 2
         if not isinstance(param, Param):
             param = Param(*param)
         self._param = param
@@ -87,8 +88,9 @@ class Column:
                 self._T_aq[k]
             )
 
-        self._temps = temps
-        self._H_res = H_res
+        self._z_solve = self._z_solve[1:-1]
+        self._temps = temps[:,1:-1]
+        self._H_res = H_res[:,1:-1]
         self._flows = - K * (H_res[:, 1] - H_res[:, 0]) / dz
         
         if verbose:
