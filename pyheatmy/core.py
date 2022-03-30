@@ -70,29 +70,29 @@ class Column:
         heigth = abs(self._real_z[-1] - self._real_z[0])
         Ss = param.n / heigth
 
-        H_res = np.zeros((len(self._times), nb_cells), dtype=np.float32)
-        temps = np.zeros((len(self._times), nb_cells), dtype=np.float32)
+        dts = np.array([
+            (self._times[k] - self._times[k - 1]).total_seconds()
+            for k in range(1, len(self._times))
+        ])
 
-        H_res[0] = np.linspace(self._dH[0], 0, nb_cells)
+        H_res_init = np.linspace(self._dH[0], 0, nb_cells)
+        H_res = compute_next_h(
+            K, Ss, dts, dz, H_res_init, self._dH
+        )
+        
         #temps[0] = np.linspace(self._T_riv[0], self._T_aq[0], nb_cells)
         lagr = lagrange(self._real_z, [self._T_riv[0], *self._T_measures[0], self._T_aq[0]])
-        temps[0] = lagr(self._z_solve)
-
-        for k in range(1, len(self._times)):
-            dt = (self._times[k] - self._times[k - 1]).total_seconds()
-            H_res[k] = compute_next_h(
-                K, Ss, dt, dz, H_res[k - 1], self._dH[k], 0
-            )
-            temps[k] = compute_next_temp(
-                *param[:],
-                dt,
-                dz,
-                temps[k - 1],
-                H_res[k],
-                H_res[k - 1],
-                self._T_riv[k],
-                self._T_aq[k]
-            )
+        temps_init = lagr(self._z_solve)
+        
+        temps = compute_next_temp(
+            *param[:],
+            dts,
+            dz,
+            temps_init,
+            H_res,
+            self._T_riv,
+            self._T_aq
+        )
 
         self._z_solve = self._z_solve[1:-1]
         self._temps = temps[:,1:-1]
