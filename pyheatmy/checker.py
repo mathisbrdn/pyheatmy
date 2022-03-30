@@ -23,16 +23,13 @@ def checker(checked_meth):
             method: checker method
     """
 
-    def reset(col):
-        col.__dict__[check_name] = False
+    def reset():
+        return None
 
     def needed(meth):
         @wraps(meth)
         def new_meth(self, *args, **kargs):
-            if (
-                check_name in self.__dict__
-                and self.__dict__[check_name]
-            ):
+            if hasattr(self, chkd_name) and getattr(self, chkd_name):
                 return meth(self, *args, **kargs)
             raise ComputationOrderException(
                 f"{checked_meth.__name__} has to be computed before calling {meth.__name__}."
@@ -42,10 +39,22 @@ def checker(checked_meth):
 
     @wraps(checked_meth)
     def wrapper(self, *args, **kwargs):
-        self.__dict__[check_name] = True
-        return checked_meth(self, *args, **kwargs)
+        nonlocal wrapper
 
-    check_name = "_" + checked_meth.__name__
-    wrapper.reset = reset
+        @wraps(checked_meth)
+        def new_wrapper(*args, **kwargs):
+            setattr(self, chkd_name, True)
+            return checked_meth(self, *args, **kwargs)
+
+        def reset():
+            setattr(self, chkd_name, False)
+
+        new_wrapper.needed = needed
+        new_wrapper.reset = reset
+        setattr(self, checked_meth.__name__, new_wrapper)
+        return new_wrapper(*args, **kwargs)
+
+    chkd_name = "__" + checked_meth.__name__
     wrapper.needed = needed
+    wrapper.reset = reset
     return wrapper

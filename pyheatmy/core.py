@@ -149,9 +149,6 @@ class Column:
 
     flows_solve = property(get_flows_solve)
 
-    def solve_anal(self, param: tuple, P: Union[float, Sequence]):
-        raise NotImplementedError
-
     @checker
     def compute_mcmc(
         self,
@@ -239,7 +236,7 @@ class Column:
                 self._states[-1].ratio_accept = ratio_accept
                 _temps[_] = _temps[_ - 1]
                 _flows[_] = _flows[_ - 1]
-        self.compute_solve_transi.reset(self)
+        self.compute_solve_transi.reset()
 
         if verbose:
             print("Mcmc Done.\n Start quantiles computation")
