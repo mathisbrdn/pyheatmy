@@ -29,14 +29,14 @@ def compute_next_temp(
 
     ke = lambda_m / rho_mc_m
     ae = RHO_W * C_W * K / rho_mc_m
-    
+
     for ix in range(1, dts.size + 1):
         dt = dts[ix - 1]
-        
-        dH_prev = zeros(N, dtype = float32)
-        dH_prev[1:-1] = (H_res[ix-1,2:]-H_res[ix-1,:-2])/(2.*dz)
-        dH_prev[0] = (H_res[ix-1,2]-H_res[ix-1,1])/dz
-        dH_prev[-1] = (H_res[ix-1,-2]-H_res[ix-1,-3])/dz
+
+        dH_prev = zeros(N, dtype=float32)
+        dH_prev[1:-1] = (H_res[ix - 1, 2:] - H_res[ix - 1, :-2]) / (2.0 * dz)
+        dH_prev[0] = (H_res[ix - 1, 2] - H_res[ix - 1, 1]) / dz
+        dH_prev[-1] = (H_res[ix - 1, -2] - H_res[ix - 1, -3]) / dz
 
         a = (-ke / dz ** 2 + dH_prev[1:] * (ae / (2 * dz))) * (1 - alpha)
         a[0] = -(1 - alpha) * (2 * ke / dz ** 2 - ae * dH_prev[0] / (2 * dz))
@@ -50,12 +50,12 @@ def compute_next_temp(
 
         lim = tri_product(a, b, c, temps[ix - 1])
         lim[0], lim[-1] = t0s[ix], tns[ix]
-        
-        dH = zeros(N, dtype = float32)
-        dH[1:-1] = (H_res[ix,2:]-H_res[ix,:-2])/(2.*dz)
-        dH[0] = (H_res[ix,2]-H_res[ix,1])/dz
-        dH[-1] = (H_res[ix,-2]-H_res[ix,-3])/dz
-        
+
+        dH = zeros(N, dtype=float32)
+        dH[1:-1] = (H_res[ix, 2:] - H_res[ix, :-2]) / (2.0 * dz)
+        dH[0] = (H_res[ix, 2] - H_res[ix, 1]) / dz
+        dH[-1] = (H_res[ix, -2] - H_res[ix, -3]) / dz
+
         a = (ke / dz ** 2 - dH[1:] * ae / (2 * dz)) * alpha
         a[0] = alpha * (2 * ke / dz ** 2 - ae * dH[0] / (2 * dz))
         a[-2] = alpha * (ke / dz ** 2 + ae * dH[-1] / (2 * dz))
@@ -77,11 +77,11 @@ def compute_next_temp(
 def compute_next_h(K, Ss, dts, dz, H_init, dHs, alpha=0.7):
     dHs = dHs.astype(float32)
     dts = dts.astype(float32)
-    
+
     N = H_init.size
     H_res = zeros((dts.size + 1, N), dtype=float32)
     H_res[0] = H_init.astype(float32)
-    
+
     for ix in range(1, dts.size + 1):
         dt = dts[ix - 1]
 
@@ -106,7 +106,7 @@ def compute_next_h(K, Ss, dts, dz, H_init, dHs, alpha=0.7):
 
         a = full(N - 1, k, dtype=float32)
         a[0] = 8 * alpha * K / (3 * ((dz) ** 2))
-        a[-2] = 4 * (alpha) * K  / (3 * (dz) ** 2)
+        a[-2] = 4 * (alpha) * K / (3 * (dz) ** 2)
         a[-1] = 0
         b = full(N, -2 * k - Ss / dt, dtype=float32)
         b[0], b[-1] = 1, 1
